@@ -244,32 +244,59 @@ public class ModHudCompat {
         return new SurvivalHud(hasThirst, thirst, thirstSat, hasTemp, tempVal, tempStatus, hasStamina, stamina, maxStamina);
     }
 
+    private static Class<?> findClass(String name) {
+        try {
+            return Class.forName(name);
+        } catch (Throwable ignored) {
+            try {
+                return Class.forName(name, true, Thread.currentThread().getContextClassLoader());
+            } catch (Throwable ignored2) {
+                try {
+                    return Class.forName(name, true, Minecraft.class.getClassLoader());
+                } catch (Throwable ignored3) {
+                    return null;
+                }
+            }
+        }
+    }
+
     private static void initLsoReflection() {
         if (lsoChecked) return;
         lsoChecked = true;
         try {
-            Class<?> capUtilClass = Class.forName("sfiomn.legendarysurvivaloverhaul.util.CapabilityUtil");
-            lsoGetThirstCap = capUtilClass.getMethod("getThirstCapability", Player.class);
-            lsoGetTempCap = capUtilClass.getMethod("getTempCapability", Player.class);
+            Class<?> capUtilClass = findClass("sfiomn.legendarysurvivaloverhaul.util.CapabilityUtil");
+            if (capUtilClass != null) {
+                lsoGetThirstCap = capUtilClass.getMethod("getThirstCapability", Player.class);
+                lsoGetTempCap = capUtilClass.getMethod("getTempCapability", Player.class);
+            }
 
-            Class<?> thirstCapClass = Class.forName("sfiomn.legendarysurvivaloverhaul.common.capabilities.thirst.ThirstCapability");
-            thirstGetHydration = thirstCapClass.getMethod("getHydrationLevel");
-            thirstGetSaturation = thirstCapClass.getMethod("getSaturationLevel");
+            Class<?> thirstCapClass = findClass("sfiomn.legendarysurvivaloverhaul.common.capabilities.thirst.ThirstCapability");
+            if (thirstCapClass != null) {
+                thirstGetHydration = thirstCapClass.getMethod("getHydrationLevel");
+                thirstGetSaturation = thirstCapClass.getMethod("getSaturationLevel");
+            }
 
-            Class<?> tempCapClass = Class.forName("sfiomn.legendarysurvivaloverhaul.common.capabilities.temperature.TemperatureCapability");
-            tempGetLevel = tempCapClass.getMethod("getTemperatureLevel");
-            tempGetEnum = tempCapClass.getMethod("getTemperatureEnum");
-        } catch (Throwable ignored) {}
+            Class<?> tempCapClass = findClass("sfiomn.legendarysurvivaloverhaul.common.capabilities.temperature.TemperatureCapability");
+            if (tempCapClass != null) {
+                tempGetLevel = tempCapClass.getMethod("getTemperatureLevel");
+                tempGetEnum = tempCapClass.getMethod("getTemperatureEnum");
+            }
+            System.out.println("[ThorHud] LSO reflection initialized: thirstCap=" + (lsoGetThirstCap != null) + ", tempCap=" + (lsoGetTempCap != null));
+        } catch (Throwable t) {
+            System.out.println("[ThorHud] Failed to initialize LSO reflection: " + t.getMessage());
+        }
     }
 
     private static void initParcoolReflection() {
         if (parcoolChecked) return;
         parcoolChecked = true;
         try {
-            Class<?> staminaClass = Class.forName("com.alrex.parcool.api.Stamina");
-            parcoolStaminaGet = staminaClass.getMethod("get", Player.class);
-            parcoolStaminaGetValue = staminaClass.getMethod("getValue");
-            parcoolStaminaGetMaxValue = staminaClass.getMethod("getMaxValue");
+            Class<?> staminaClass = findClass("com.alrex.parcool.api.Stamina");
+            if (staminaClass != null) {
+                parcoolStaminaGet = staminaClass.getMethod("get", Player.class);
+                parcoolStaminaGetValue = staminaClass.getMethod("getValue");
+                parcoolStaminaGetMaxValue = staminaClass.getMethod("getMaxValue");
+            }
         } catch (Throwable ignored) {}
     }
 
