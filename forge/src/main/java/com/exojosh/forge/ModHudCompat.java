@@ -14,7 +14,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraftforge.common.capabilities.Capability;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,6 +99,9 @@ public class ModHudCompat {
     private static Method thirstGetSaturation = null;
     private static Method tempGetLevel = null;
     private static Method tempGetEnum = null;
+    // Read on every call, not cached, so a null read is not frozen in for the session.
+    private static Field lsoThirstCapField = null;
+    private static Field lsoTempCapField = null;
 
     // --- ParCool Reflection Cache ---
     private static boolean parcoolChecked = false;
@@ -203,28 +208,28 @@ public class ModHudCompat {
 
         // LSO Reflection
         initLsoReflection();
-        if (lsoGetThirstCap != null) {
+        // LSO's CapabilityUtil.get*Capability never returns null: it falls back to a
+        // fresh instance when the player has no capability (verified by javap -c on
+        // legendarysurvivaloverhaul-1.20.1-2.3.23.1.jar). So presence has to be asked
+        // of the capability itself, or "LSO is installed" reads as "thirst is present".
+        if (lsoGetThirstCap != null && hasLsoCapability(player, lsoThirstCapField)) {
             try {
                 Object thirstCap = lsoGetThirstCap.invoke(null, player);
-                if (thirstCap != null) {
-                    hasThirst = true;
-                    Object hVal = thirstGetHydration.invoke(thirstCap);
-                    if (hVal instanceof Number n) thirst = n.floatValue();
-                    Object sVal = thirstGetSaturation.invoke(thirstCap);
-                    if (sVal instanceof Number n) thirstSat = n.floatValue();
-                }
+                Object hVal = thirstGetHydration.invoke(thirstCap);
+                Object sVal = thirstGetSaturation.invoke(thirstCap);
+                if (hVal instanceof Number n) thirst = n.floatValue();
+                if (sVal instanceof Number n) thirstSat = n.floatValue();
+                hasThirst = true;
             } catch (Exception ignored) {}
         }
-        if (lsoGetTempCap != null) {
+        if (lsoGetTempCap != null && hasLsoCapability(player, lsoTempCapField)) {
             try {
                 Object tempCap = lsoGetTempCap.invoke(null, player);
-                if (tempCap != null) {
-                    hasTemp = true;
-                    Object tVal = tempGetLevel.invoke(tempCap);
-                    if (tVal instanceof Number n) tempVal = n.floatValue();
-                    Object eVal = tempGetEnum.invoke(tempCap);
-                    if (eVal != null) tempStatus = eVal.toString();
-                }
+                Object tVal = tempGetLevel.invoke(tempCap);
+                Object eVal = tempGetEnum.invoke(tempCap);
+                if (tVal instanceof Number n) tempVal = n.floatValue();
+                if (eVal != null) tempStatus = eVal.toString();
+                hasTemp = true;
             } catch (Exception ignored) {}
         }
 
@@ -260,6 +265,19 @@ public class ModHudCompat {
         }
     }
 
+    // True only when the player actually holds the LSO capability. Forge's
+    // getCapability returns an empty LazyOptional when it is absent.
+    private static boolean hasLsoCapability(Player player, Field capabilityField) {
+        if (capabilityField == null) return false;
+        try {
+            Object capability = capabilityField.get(null);
+            if (!(capability instanceof Capability<?> cap)) return false;
+            return player.getCapability(cap).isPresent();
+        } catch (IllegalAccessException e) {
+            return false;
+        }
+    }
+
     private static void initLsoReflection() {
         if (lsoChecked) return;
         lsoChecked = true;
@@ -281,7 +299,17 @@ public class ModHudCompat {
                 tempGetLevel = tempCapClass.getMethod("getTemperatureLevel");
                 tempGetEnum = tempCapClass.getMethod("getTemperatureEnum");
             }
-            System.out.println("[ThorHud] LSO reflection initialized: thirstCap=" + (lsoGetThirstCap != null) + ", tempCap=" + (lsoGetTempCap != null));
+            Class<?> thirstProviderClass = findClass("sfiomn.legendarysurvivaloverhaul.common.capabilities.thirst.ThirstProvider");
+            if (thirstProviderClass != null) {
+                lsoThirstCapField = thirstProviderClass.getField("THIRST_CAPABILITY");
+            }
+
+            Class<?> tempProviderClass = findClass("sfiomn.legendarysurvivaloverhaul.common.capabilities.temperature.TemperatureProvider");
+            if (tempProviderClass != null) {
+                lsoTempCapField = tempProviderClass.getField("TEMPERATURE_CAPABILITY");
+            }
+            System.out.println("[ThorHud] LSO reflection initialized: thirstCap=" + (lsoGetThirstCap != null) + ", tempCap=" + (lsoGetTempCap != null)
+                    + ", thirstCapField=" + (lsoThirstCapField != null) + ", tempCapField=" + (lsoTempCapField != null));
         } catch (Throwable t) {
             System.out.println("[ThorHud] Failed to initialize LSO reflection: " + t.getMessage());
         }
