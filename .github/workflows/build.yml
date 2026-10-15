@@ -33,3 +33,30 @@ jobs:
         with:
           name: Artifacts
           path: build/libs/
+
+  # The Forge subproject is a separate Gradle build under forge/ and was not
+  # covered by the root build above, so it could rot without anyone noticing.
+  # Forge 1.20.1 targets Java 17, which is what forge/build.gradle pins.
+  forge:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+        working-directory: forge
+      - name: build forge
+        run: ./gradlew build
+        working-directory: forge
+      - name: capture forge build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: forge-artifacts
+          path: forge/build/libs/
