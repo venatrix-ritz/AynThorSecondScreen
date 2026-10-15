@@ -185,7 +185,12 @@ public class ModHudCompat {
             Class<?> gunDataClass = Class.forName("com.tacz.guns.resource.pojo.data.gun.GunData");
             gunDataGetAmmoAmount = gunDataClass.getMethod("getAmmoAmount");
             gunDataGetAmmoId = gunDataClass.getMethod("getAmmoId");
-        } catch (Throwable ignored) {}
+            System.out.println("[ThorHud] TACZ reflection initialized");
+        } catch (Throwable t) {
+            // Logged once per session. Without this, a renamed TACZ method leaves
+            // gun.active false with no trace anywhere.
+            System.out.println("[ThorHud] TACZ reflection unavailable: " + t);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -325,7 +330,10 @@ public class ModHudCompat {
                 parcoolStaminaGetValue = staminaClass.getMethod("getValue");
                 parcoolStaminaGetMaxValue = staminaClass.getMethod("getMaxValue");
             }
-        } catch (Throwable ignored) {}
+            System.out.println("[ThorHud] ParCool reflection initialized: stamina=" + (staminaClass != null));
+        } catch (Throwable t) {
+            System.out.println("[ThorHud] ParCool reflection unavailable: " + t);
+        }
     }
 
     // -------------------------------------------------------------------------
