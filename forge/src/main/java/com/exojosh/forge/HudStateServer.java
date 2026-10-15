@@ -149,8 +149,11 @@ public class HudStateServer {
 
                 while (!serverSocket.isClosed()) {
                     Socket socket = serverSocket.accept();
-                    clients.add(socket);
+                    // The hello is the only write this thread makes. It goes out before the
+                    // socket is in clients, so the tick thread's broadcasts cannot interleave
+                    // with it on the wire.
                     sendHello(socket);
+                    clients.add(socket);
                     newClients.add(socket);
 
                     Thread reader = new Thread(() -> clientReadLoop(socket), "ThorHud-Reader-" + socket.getPort());
