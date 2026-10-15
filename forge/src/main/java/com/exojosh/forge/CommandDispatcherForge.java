@@ -44,19 +44,46 @@ public class CommandDispatcherForge {
         COMMANDS.put("TAB", options.keyPlayerList);
         COMMANDS.put("PLAYER_LIST", options.keyPlayerList);
 
-        if (options.keyMappings != null) {
-            for (KeyMapping k : options.keyMappings) {
-                if (k != null && k.getName() != null) {
-                    String name = k.getName().toLowerCase();
-                    if (name.contains("map") || name.contains("minimap")) {
-                        COMMANDS.putIfAbsent("MAP", k);
-                        COMMANDS.putIfAbsent("M", k);
-                    }
-                }
-            }
+        KeyMapping mapKey = findMapKey(options);
+        if (mapKey != null) {
+            COMMANDS.put("MAP", mapKey);
+            COMMANDS.put("M", mapKey);
+            System.out.println("[ThorHud] MAP/M resolves to key binding: " + mapKey.getName());
+        } else {
+            System.out.println("[ThorHud] No map key binding found; MAP/M will be ignored.");
         }
 
         initialized = true;
+    }
+
+    /**
+     * Picks the key binding the MAP/M command presses. Any name containing "map" used to qualify and the first one in
+     * options order won, which in a modpack with Xaero's can be its minimap settings or a zoom key rather than the
+     * open-map key. An explicit open-map name is preferred; otherwise the first "map" name that is not an obvious
+     * helper action.
+     */
+    private static KeyMapping findMapKey(Options options) {
+        if (options.keyMappings == null) return null;
+        KeyMapping fallback = null;
+        for (KeyMapping k : options.keyMappings) {
+            if (k == null || k.getName() == null) continue;
+            String name = k.getName().toLowerCase();
+            if (!name.contains("map")) continue;
+            if (name.contains("open_map") || name.contains("openmap") || name.contains("worldmap")
+                    || name.contains("world_map")) {
+                return k;
+            }
+            if (fallback == null && !isMapHelperKey(name)) {
+                fallback = k;
+            }
+        }
+        return fallback;
+    }
+
+    private static boolean isMapHelperKey(String name) {
+        return name.contains("setting") || name.contains("zoom") || name.contains("toggle")
+                || name.contains("enlarge") || name.contains("waypoint") || name.contains("tracked")
+                || name.contains("mipmap");
     }
 
     public static void tick() {
