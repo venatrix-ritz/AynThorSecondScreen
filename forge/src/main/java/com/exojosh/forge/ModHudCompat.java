@@ -23,13 +23,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Safe reflection-based compatibility bridge for Minecraft mods in DeceasedCraft:
- * 1. Timeless and Classics Guns (TACZ): Gun ammo, max capacity, fire mode, reserve ammo
- * 2. Legendary Survival Overhaul (LSO): Hydration/thirst and temperature
- * 3. ParCool: Parkour stamina
- * 4. AppleSkin: Saturation and exhaustion
- * 5. Inventory HUD+ / ArmorPoints++: Equipped armor durability, toughness, active potion effects
- * 6. Target Inspector (The One Probe / WAILA style): Crosshair target block or mob
+ * HUD data for DeceasedCraft's optional mods. Only three are read by reflection, because
+ * their APIs are not on this build's classpath (forge/build.gradle declares only Forge):
+ * 1. Timeless and Classics Guns (TACZ): gun ammo, max capacity, fire mode, reserve ammo
+ * 2. Legendary Survival Overhaul (LSO): hydration/thirst and temperature
+ * 3. ParCool: stamina
+ *
+ * Everything else reads vanilla state directly. Saturation and exhaustion come from
+ * FoodData (AppleSkin is not read), armor durability and potion effects from the player,
+ * and the crosshair target from Minecraft.hitResult (The One Probe is not read).
  */
 public class ModHudCompat {
 
